@@ -85,6 +85,8 @@ class Ecoli_Walk_Simulation():
     self.stepSize_std = stepSize_std
     self.grad_Est = grad_Est
     self.plotLevels = plotLevels
+    self.Ecoli_x = None
+    self.Ecoli_y = None
 
 
   def FoodLoc_F1(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
@@ -175,7 +177,7 @@ class Ecoli_Walk_Simulation():
 
     return gradA
 
-  def grade_F1(self, X, Y):
+  def grad_F1(self, X, Y):
     """
     Knowing F1, take the actual partial derivative evaluated after "N_steps"
     random steps with respect to both the X and Y directions
@@ -312,7 +314,8 @@ class Ecoli_Walk_Simulation():
 
         Ecoli_y[:,runIter] += steps_y[:,0]
 
-
+    self.Ecoli_x = Ecoli_x
+    self.Ecoli_y = Ecoli_y
 
     #__________________________________________________________________________#
 
@@ -386,6 +389,59 @@ class Ecoli_Walk_Simulation():
 
     plt.plot(plotX, plotY, color = 'r',marker = 'o', markersize = 3) #Ecoli
 
+    plt.show()
+
+  #Needs work due to updated code and array dimensions
+  def plot_histogram(self):
+    figure, axes = plt.subplots(nrows= 5, ncols = 1)
+    empty_patch = mpatches.Patch(color = 'none')
+    bins = 50
+    max_distance = np.sqrt((self.Ecoli_x[0, 0] - self.a)**2 + (self.Ecoli_y[0, 0] - self.b)**2)
+
+    #  I = 1
+    distance = np.sqrt((self.Ecoli_x[0, 1] - self.a)**2 + (self.Ecoli_y[0, 1] - self.b)**2)
+    axes[0].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(empty_patch)
+    labels.append("I = 1")
+    axes[0].legend(handles, labels,loc='upper left', handlelength = 0, handleheight = 0)
+
+    #  I = 10
+    distance = np.sqrt((self.Ecoli_x[0, 9] - self.a)**2 + (self.Ecoli_y[0, 9] - self.b)**2)
+    axes[1].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(empty_patch)
+    labels.append("I = 10")
+    axes[1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #  I = 50
+    distance = np.sqrt((self.Ecoli_x[0, 49] - self.a)**2 + (self.Ecoli_y[0, 49] - self.b)**2)
+    axes[2].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(empty_patch)
+    labels.append("I = 50")
+    axes[2].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #  I = 100
+    distance = np.sqrt((self.Ecoli_x[0, 99] - self.a)**2 + (self.Ecoli_y[0, 99] - self.b)**2)
+    axes[3].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(empty_patch)
+    labels.append("I = 100")
+    axes[3].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #  I = 1000
+    distance = np.sqrt((self.Ecoli_x[0, 999] - self.a)**2 + (self.Ecoli_y[0, 999] - self.b)**2)
+    axes[4].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(empty_patch)
+    labels.append("I = 1000")
+    axes[4].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    figure.supxlabel("distance from source")
+    figure.supylabel("number of Ecoli")
+
+    plt.tight_layout()
     plt.show()
 
 
