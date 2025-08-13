@@ -68,7 +68,8 @@ class Ecoli_Walk_Simulation():
               stepSize_mu: float = 0.5,
               stepSize_std: float = 0.5,
               grad_Est: bool = True,
-              plotLevels: int = 20):
+              plotLevels: int = 20,
+              N: int = 10):
 
 
 
@@ -85,9 +86,9 @@ class Ecoli_Walk_Simulation():
     self.stepSize_std = stepSize_std
     self.grad_Est = grad_Est
     self.plotLevels = plotLevels
-    self.Ecoli_x = None
-    self.Ecoli_y = None
-
+    self.N = N
+    self.all_Ecoli_x = np.zeros((N, tumbles + 1, iterationCount))
+    self.all_Ecoli_y = np.zeros((N, tumbles + 1, iterationCount))
 
   def FoodLoc_F1(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
 
@@ -230,6 +231,8 @@ class Ecoli_Walk_Simulation():
 
     tumblesPlusRun = self.tumbles + 1 #Set the tumble + run step size (t + n*dt)
 
+    N = self.N #Number of E.coli
+
     #Bring in F1 functions from self
     grad_F1_estimation = self.grad_F1_estimation
 
@@ -242,37 +245,40 @@ class Ecoli_Walk_Simulation():
 
     Y_init = self.Y_init
 
-    #create column vectors to determine f(t: t+4dt) locations
-    #Initially all rows of these columns = X_init or Y_init
-    Ecoli_x = X_init*np.ones((tumblesPlusRun , iterationCount))
+    #Set up for loop to iterate through N Ecoli
+    for i in range(N):
 
-    Ecoli_y = Y_init*np.ones((tumblesPlusRun , iterationCount))
+      #create column vectors to determine f(t: t+4dt) locations
+      #Initially all rows of these columns = X_init or Y_init
+      Ecoli_x = X_init*np.ones((tumblesPlusRun , iterationCount))
 
-
-
-
-
-    #steps_X = the np.cumsum of Random steps (tumble) in the X-direction
-    #steps_Y = the np.cumsum of Random steps (tumble) in the Y-direction
-    steps_x, steps_y = randSteps(stepSize_mu = self.stepSize_mu,
-                                  stepSize_std = self.stepSize_std,
-                                  N_steps = self.tumbles)
-
-    #__________________________________________________________________________#
-
-    ###Initial Steps###
-
-    Ecoli_x[:,0] += steps_x[:,0] #Add the cumsum to X_init
-
-    Ecoli_y[:,0] += steps_y[:,0] #Add the cumsum to Y_init
-
-    #__________________________________________________________________________#
+      Ecoli_y = Y_init*np.ones((tumblesPlusRun , iterationCount))
 
 
-    ###Loop through remaining steps with a similar logic to the initial step###
 
 
-    for runIter in range(1,iterationCount):
+
+      #steps_X = the np.cumsum of Random steps (tumble) in the X-direction
+      #steps_Y = the np.cumsum of Random steps (tumble) in the Y-direction
+      steps_x, steps_y = randSteps(stepSize_mu = self.stepSize_mu,
+                                    stepSize_std = self.stepSize_std,
+                                    N_steps = self.tumbles)
+
+      #__________________________________________________________________________#
+
+      ###Initial Steps###
+
+      Ecoli_x[:,0] += steps_x[:,0] #Add the cumsum to X_init
+
+      Ecoli_y[:,0] += steps_y[:,0] #Add the cumsum to Y_init
+
+      #__________________________________________________________________________#
+
+
+      ###Loop through remaining steps with a similar logic to the initial step###
+
+
+      for runIter in range(1,iterationCount):
 
         runStep_Magnitude_eps = .8 #set the run step length
 
@@ -314,8 +320,9 @@ class Ecoli_Walk_Simulation():
 
         Ecoli_y[:,runIter] += steps_y[:,0]
 
-    self.Ecoli_x = Ecoli_x
-    self.Ecoli_y = Ecoli_y
+    #store x,y values for each Ecoli
+    self.all_Ecoli_x[i] = Ecoli_x
+    self.all_Ecoli_y[i] = Ecoli_y
 
     #__________________________________________________________________________#
 
@@ -391,15 +398,15 @@ class Ecoli_Walk_Simulation():
 
     plt.show()
 
-  #Needs work due to updated code and array dimensions
+  #Needs work due to updated code and array
   def plot_histogram(self):
     figure, axes = plt.subplots(nrows= 5, ncols = 1)
     empty_patch = mpatches.Patch(color = 'none')
-    bins = 50
-    max_distance = np.sqrt((self.Ecoli_x[0, 0] - self.a)**2 + (self.Ecoli_y[0, 0] - self.b)**2)
+    bins = "auto"
+    max_distance = np.sqrt((self.all_Ecoli_x[0, 0, 0] - self.a)**2 + (self.all_Ecoli_y[0, 0, 0] - self.b)**2) + self.stepSize_mu + 10 * self.stepSize_std
 
     #  I = 1
-    distance = np.sqrt((self.Ecoli_x[0, 1] - self.a)**2 + (self.Ecoli_y[0, 1] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 1] - self.a)**2 + (self.all_Ecoli_y[:, 0, 1] - self.b)**2)
     axes[0].hist(distance, bins= bins, range=[0, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
@@ -407,7 +414,7 @@ class Ecoli_Walk_Simulation():
     axes[0].legend(handles, labels,loc='upper left', handlelength = 0, handleheight = 0)
 
     #  I = 10
-    distance = np.sqrt((self.Ecoli_x[0, 9] - self.a)**2 + (self.Ecoli_y[0, 9] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 9] - self.a)**2 + (self.all_Ecoli_y[:, 0, 9] - self.b)**2)
     axes[1].hist(distance, bins= bins, range=[0, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
@@ -415,7 +422,7 @@ class Ecoli_Walk_Simulation():
     axes[1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
     #  I = 50
-    distance = np.sqrt((self.Ecoli_x[0, 49] - self.a)**2 + (self.Ecoli_y[0, 49] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 49] - self.a)**2 + (self.all_Ecoli_y[:, 0, 49] - self.b)**2)
     axes[2].hist(distance, bins= bins, range=[0, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
@@ -423,7 +430,7 @@ class Ecoli_Walk_Simulation():
     axes[2].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
     #  I = 100
-    distance = np.sqrt((self.Ecoli_x[0, 99] - self.a)**2 + (self.Ecoli_y[0, 99] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 99] - self.a)**2 + (self.all_Ecoli_y[:, 0, 99] - self.b)**2)
     axes[3].hist(distance, bins= bins, range=[0, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
@@ -431,7 +438,7 @@ class Ecoli_Walk_Simulation():
     axes[3].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
     #  I = 1000
-    distance = np.sqrt((self.Ecoli_x[0, 999] - self.a)**2 + (self.Ecoli_y[0, 999] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 999] - self.a)**2 + (self.all_Ecoli_y[:, 0, 999] - self.b)**2)
     axes[4].hist(distance, bins= bins, range=[0, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
