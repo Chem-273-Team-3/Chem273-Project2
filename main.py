@@ -320,9 +320,9 @@ class Ecoli_Walk_Simulation():
 
         Ecoli_y[:,runIter] += steps_y[:,0]
 
-    #store x,y values for each Ecoli
-    self.all_Ecoli_x[i] = Ecoli_x
-    self.all_Ecoli_y[i] = Ecoli_y
+      #store x,y values for each Ecoli
+      self.all_Ecoli_x[i] = Ecoli_x
+      self.all_Ecoli_y[i] = Ecoli_y
 
     #__________________________________________________________________________#
 
