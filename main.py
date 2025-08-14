@@ -329,29 +329,20 @@ class Ecoli_Walk_Simulation():
 
         Ecoli_y[:,runIter] += tumbles_y[:,0]
 
-        # if runIter % 100 == 0:
-        #     #Reshape Ecoli arrays for plotting (from 2D to 1D) by stacking column(i)
-        #     #below column(i-1):
-        #     plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
-        #     plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
+        if not runIter % 100:
+          #Resize Ecoli arrays for plotting (from 2D to 1D) by stacking column(i) and removing future time step values
+          plotX = np.resize(Ecoli_x.transpose(),(runIter*tumblesPlusRun,))
+          plotY = np.resize(Ecoli_y.transpose(),(runIter*tumblesPlusRun,))
 
-        #     #Use plot_Ecloi function to genatre the plot
-        #     plot_Ecoli = self.plot_Ecoli
-        #     plot_Ecoli(plotX, plotY)
-
-      #Reshape Ecoli arrays for plotting (from 2D to 1D) by stacking column(i)
-      #below column(i-1):
-      plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
-      plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
-
-      #Use plot_Ecoli function to generate the plot
-      plot_Ecoli = self.plot_Ecoli
-      plot_Ecoli(plotX, plotY)
+          #Use plot_Ecoli function to generate the plot
+          plot_Ecoli = self.plot_Ecoli
+          plot_Ecoli(plotX, plotY)
 
       #store x,y values for each Ecoli
       self.all_Ecoli_x[i] = Ecoli_x
       self.all_Ecoli_y[i] = Ecoli_y
 
+    #Plot histogram for paths of all Ecoli
     self.plot_EcoliPath_histogram()
 
   def plot_Ecoli(self, plotX, plotY):
