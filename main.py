@@ -174,7 +174,7 @@ class Ecoli_Walk_Simulation():
 
     #__________________________________________________________________________#
     ###Setting variables###
-    iterationCount = self.iterationCount #Numebr of iterations
+    iterationCount = self.iterationCount #Number of iterations
 
     tumblesPlusRun = self.tumbles + 1 #Set the tumble + run step size (t + n*dt)
 
@@ -329,19 +329,30 @@ class Ecoli_Walk_Simulation():
 
         Ecoli_y[:,runIter] += tumbles_y[:,0]
 
-        if runIter % 100 == 0:
-            #Reshape Ecoli arrays for plotting (from 2D to 1D) by stacking column(i)
-            #below column(i-1):
-            plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
-            plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
+        # if runIter % 100 == 0:
+        #     #Reshape Ecoli arrays for plotting (from 2D to 1D) by stacking column(i)
+        #     #below column(i-1):
+        #     plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
+        #     plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
 
-            #Use plot_Ecloi function to genatre the plot
-            plot_Ecoli = self.plot_Ecoli
-            plot_Ecoli(plotX, plotY)
+        #     #Use plot_Ecloi function to genatre the plot
+        #     plot_Ecoli = self.plot_Ecoli
+        #     plot_Ecoli(plotX, plotY)
+
+      #Reshape Ecoli arrays for plotting (from 2D to 1D) by stacking column(i)
+      #below column(i-1):
+      plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
+      plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
+
+      #Use plot_Ecoli function to generate the plot
+      plot_Ecoli = self.plot_Ecoli
+      plot_Ecoli(plotX, plotY)
 
       #store x,y values for each Ecoli
       self.all_Ecoli_x[i] = Ecoli_x
       self.all_Ecoli_y[i] = Ecoli_y
+
+    self.plot_EcoliPath_histogram()
 
   def plot_Ecoli(self, plotX, plotY):
 
@@ -387,59 +398,81 @@ class Ecoli_Walk_Simulation():
 
     plt.show()
 
-  #Needs work due to updated code and array
-  def plot_histogram(self):
-    figure, axes = plt.subplots(nrows= 5, ncols = 1)
-    empty_patch = mpatches.Patch(color = 'none')
-    bins = "auto"
-    max_distance = np.sqrt((self.all_Ecoli_x[0, 0, 0] - self.a)**2 + (self.all_Ecoli_y[0, 0, 0] - self.b)**2) + self.stepSize_mu + 10 * self.stepSize_std
 
-    #  I = 1
+  def plot_EcoliPath_histogram(self):
+    histogram_rows = 5
+
+    #Condition to skip histogram plot if number of E.coli is too small
+    if self.N <= 3:
+      return
+
+    #Determine how many subplots based on iteration counts
+    if self.iterationCount <= 10:
+      histogram_rows = 2
+
+    if self.iterationCount <= 50:
+      histogram_rows = 3
+
+    if self.iterationCount <= 100:
+      histogram_rows = 4
+
+    #Set up subplots, minimum/maximum, and bins
+    figure, axes = plt.subplots(nrows= histogram_rows, ncols = 1, figsize=(8, 12))
+    empty_patch = mpatches.Patch(color = 'none')
+    min_distance = 0
+    max_distance = np.sqrt((self.all_Ecoli_x[0, 0, 0] - self.a)**2 + (self.all_Ecoli_y[0, 0, 0] - self.b)**2) + self.stepSize_mu + 10 * self.stepSize_std
+    bins = np.linspace(min_distance, max_distance, self.N)
+
+    #Initial subplot for first time step
     distance = np.sqrt((self.all_Ecoli_x[:, 0, 1] - self.a)**2 + (self.all_Ecoli_y[:, 0, 1] - self.b)**2)
-    axes[0].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    axes[0].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
     labels.append("I = 1")
     axes[0].legend(handles, labels,loc='upper left', handlelength = 0, handleheight = 0)
 
-    #  I = 10
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, 9] - self.a)**2 + (self.all_Ecoli_y[:, 0, 9] - self.b)**2)
-    axes[1].hist(distance, bins= bins, range=[0, max_distance], color = "black")
+    #Subplot for 10 time steps
+    if self.iterationCount > 10:
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 9] - self.a)**2 + (self.all_Ecoli_y[:, 0, 9] - self.b)**2)
+      axes[1].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
+      handles, labels = plt.gca().get_legend_handles_labels()
+      handles.append(empty_patch)
+      labels.append("I = 10")
+      axes[1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #Subplot for 50 time steps
+    if self.iterationCount > 50:
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 49] - self.a)**2 + (self.all_Ecoli_y[:, 0, 49] - self.b)**2)
+      axes[2].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
+      handles, labels = plt.gca().get_legend_handles_labels()
+      handles.append(empty_patch)
+      labels.append("I = 50")
+      axes[2].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #Subplot for 100 time steps
+    if self.iterationCount > 100:
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 99] - self.a)**2 + (self.all_Ecoli_y[:, 0, 99] - self.b)**2)
+      axes[3].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
+      handles, labels = plt.gca().get_legend_handles_labels()
+      handles.append(empty_patch)
+      labels.append("I = 100")
+      axes[3].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+
+    #Subplot for last time step of iterations
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, -1] - self.a)**2 + (self.all_Ecoli_y[:, 0, -1] - self.b)**2)
+    axes[-1].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
-    labels.append("I = 10")
-    axes[1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
+    labels.append(f"I = {self.iterationCount}")
+    axes[-1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
-    #  I = 50
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, 49] - self.a)**2 + (self.all_Ecoli_y[:, 0, 49] - self.b)**2)
-    axes[2].hist(distance, bins= bins, range=[0, max_distance], color = "black")
-    handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(empty_patch)
-    labels.append("I = 50")
-    axes[2].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
-
-    #  I = 100
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, 99] - self.a)**2 + (self.all_Ecoli_y[:, 0, 99] - self.b)**2)
-    axes[3].hist(distance, bins= bins, range=[0, max_distance], color = "black")
-    handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(empty_patch)
-    labels.append("I = 100")
-    axes[3].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
-
-    #  I = 1000
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, 999] - self.a)**2 + (self.all_Ecoli_y[:, 0, 999] - self.b)**2)
-    axes[4].hist(distance, bins= bins, range=[0, max_distance], color = "black")
-    handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(empty_patch)
-    labels.append("I = 1000")
-    axes[4].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
-
-    figure.supxlabel("distance from source")
-    figure.supylabel("number of Ecoli")
-
+    #Add dynamic labels and title
+    figure.supxlabel("Distance from the source")
+    figure.supylabel("Number of Ecoli")
+    figure.suptitle(f"Effective path lengths of E.coli \n N = {self.N}, I = {self.iterationCount}, Memory = {self.tumbles}")
     plt.tight_layout()
     plt.show()
 
 
-test = Ecoli_Walk_Simulation(a = 0, b = 0, iterationCount=1000, N = 10)
+test = Ecoli_Walk_Simulation(iterationCount=1000, N = 10)
 test.runEcoliWalk_F1()
