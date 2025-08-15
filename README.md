@@ -1,6 +1,7 @@
 Chem273-Project2 (Biased Random Walk of E.coli Simulation)
 =================================
 A Project to Better Understand the Biased Random Walk of E.coli
+
 Team 3 - Natalia Rivera, Joseph Gill, Andy Ho, Nathalie Murphy, Sibhi Sakthivel, Yashesha Kothari
 
 Overview:
