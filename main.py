@@ -1,5 +1,5 @@
 #team member names
-#Joseph Gill, Andy Ho, Nathalie Murphy, Sibhi Sakthivel, Yashesha Kothari, Natalia Rivera
+#Joseph Gill, Andy Ho, Nathalie Murphy, Yashesha Kothari, Natalia Rivera, Sibhi Sakthivel
 
 import numpy as np
 import matplotlib.pyplot as plt
