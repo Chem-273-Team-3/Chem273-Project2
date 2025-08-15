@@ -1,4 +1,4 @@
-#team member names
+#Team member names
 #Joseph Gill, Andy Ho, Nathalie Murphy, Yashesha Kothari, Natalia Rivera, Sibhi Sakthivel
 
 import numpy as np
