@@ -4,6 +4,8 @@ A Project to Better Understand the Biased Random Walk of E.coli
 
 Team 3 - Natalia Rivera, Joseph Gill, Andy Ho, Nathalie Murphy, Sibhi Sakthivel, Yashesha Kothari
 
+The package can be found in main.py file, but our test cases will be located in the main_test.ipynb file
+
 Overview:
 ---------
 Ecoli_Walk is a package that visually demonstrates the movement of E. coli towards a food source with varying concentration profiles.
