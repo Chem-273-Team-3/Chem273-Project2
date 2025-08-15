@@ -20,5 +20,5 @@ To get and use a local copy follow these simple steps:
 
 3. Construct the class and run simulation
 
-`test = Ecoli_Walk()
+`test = Ecoli_Walk() \
  test.EcoliWalk_Simulation()`
