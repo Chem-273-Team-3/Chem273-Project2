@@ -22,7 +22,7 @@ def randSteps(stepSize_mu: np.array = np.ones((2,1)),
   Outputs:
       x,y np.arrays((N_steps,1))
   """
-  #Initialize x,y columns with one mroe row than steps
+  #Initialize x,y columns with one more row than steps
 
   x = np.zeros((N_steps+1,1))
   y = np.zeros((N_steps+1,1))
@@ -47,13 +47,50 @@ def randSteps(stepSize_mu: np.array = np.ones((2,1)),
 #define E.coli class
 class Ecoli_Walk():
 
-    # Each cycle:
-    #1) Tumble: 4 small unbiased steps --> monte carlo
-    #2) Sense: compare C(t) vs C(t-4Δt)
-    #3) Run: move along recent heading if improved, else opposite --> gradient step
+  """
+    This class sets the following:
+        1) 3 Food Location Function Choices:
+                - 'Polynom_2'
+                - 'Polynom_4'
+                - 'NormalDist'
+
+        2) Food Location Variable Choices are available via **kwargs
+
+        3) Analytical or numerical gradient calculation choice
+                - Analytical gradients are provided for the 3 provided
+                food locations equations
+
+                - Analytical gradients can be used by setting
+                "analytical_Grad" = True
+
+                - Numerical gradients have a finite delta limit determined by
+                the input "gradEst_MinDelta"
+
+
+        4) Optimizer choices
+                - Momentum  + decay rate specified in **kwargs
+                - Adagrad
+                - RMSProp  + decay rate specified in **kwargs
+                - ADAM-like momentum  + decay rate specified in **kwargs
+
+        5) Initlial E.Coli positions
+
+        6) Random step criteria:
+            - Number os random steps
+            - Average Tumble to Run Length Ratios
+            - Standard Distribution of tumble lengths
+
+        7) Total iterations (tumbles + run step)
+
+        8) Plot Levels for the Food Location Function
+
+    """
+
   def __init__(self,
               #Function Params:
               foodFunctionType: str = 'Polynom_2',
+              foodLoc_X: float = 1.05,
+              foodLoc_Y: float = 0,
 
               #Gradient Params:
               gradEst_MinDelta: float = 1e-4,
@@ -89,8 +126,7 @@ class Ecoli_Walk():
 
     #Set Gradient Function as estimation; will update if anayltical is requested
     self.Grad_func = self.Grad_estimation
-
-
+    self.analytical_Grad = analytical_Grad
 
     #__________________________________________________________________________#
     ####Food Function Params:
@@ -112,7 +148,13 @@ class Ecoli_Walk():
                     'Polynom_4__c2': 3/2,
                     'Polynom_4__d2': 0,
                     'Polynom_4__e2': 5,
+
+                    'NormalDist_var_X': 5,
+                    'NormalDist_mu_X': 0,
+                    'NormalDist_var_Y': 5,
+                    'NormalDist_mu_Y': 0,
         }
+
     for key in kwargs:
       #Polynom_2 vars
       if key == 'Polynom_2__A':
@@ -148,6 +190,16 @@ class Ecoli_Walk():
       elif key == 'Polynom_4__e2':
           foodFuncVars['Polynom_4__e2'] = kwargs[key]
 
+      #NormalDist 4 vars:
+      elif key == 'NormalDist_var_X':
+          foodFuncVars['NormalDist_var_X'] = kwargs[key]
+      elif key == 'NormalDist_mu_X':
+          foodFuncVars['NormalDist_mu_X'] = kwargs[key]
+      elif key == 'NormalDist_var_Y':
+          foodFuncVars['NormalDist_var_Y'] = kwargs[key]
+      elif key == 'NormalDist_mu_Y':
+          foodFuncVars['NormalDist_mu_Y'] = kwargs[key]
+
     if foodFunctionType == 'Polynom_2':
       self.foodLocFunc = self.FoodLoc_Polynom_2
 
@@ -160,7 +212,23 @@ class Ecoli_Walk():
       self.b = foodFuncVars['Polynom_2__b']
       self.C = foodFuncVars['Polynom_2__C']
 
-    #elif <ENTER FUNCTION VARS HERE>
+      self.foodLoc_X = self.a
+      self.foodLoc_Y = self.b
+
+    elif foodFunctionType == 'NormalDist':
+      self.foodLocFunc = self.FoodLoc_NormalDist
+
+      if analytical_Grad == True:
+          self.Grad_func = self.analytical_Grad_NormalDist
+
+      self.ND_Var_X = foodFuncVars['NormalDist_var_X']
+      self.ND_Mu_X = foodFuncVars['NormalDist_mu_X']
+      self.ND_Var_Y = foodFuncVars['NormalDist_var_Y']
+      self.ND_Mu_Y = foodFuncVars['NormalDist_mu_Y']
+
+      self.foodLoc_X = 0
+      self.foodLoc_Y = 0
+
     else:
       self.foodLocFunc = self.FoodLoc_Polynom_4
 
@@ -177,6 +245,10 @@ class Ecoli_Walk():
       self.c2 = foodFuncVars['Polynom_4__c2']
       self.d2 = foodFuncVars['Polynom_4__d2']
       self.e2 = foodFuncVars['Polynom_4__e2']
+
+      self.foodLoc_X = foodLoc_X
+      self.foodLoc_Y = foodLoc_Y
+
     ####Optimizer Params:
 
     self.optimizeType = optimizeType
@@ -185,7 +257,6 @@ class Ecoli_Walk():
         'learningRate': 0.01,
         'momentumRate': 0.9,
         'ADAM_momentumRate': 0.9,
-        #'AdaGradRate': 0.9,
         'RmsPropRate': 0.9999}
 
     for key in kwargs:
@@ -234,6 +305,90 @@ class Ecoli_Walk():
     self.N = N
     self.all_Ecoli_x = np.zeros((N, tumbles + 1, iterationCount))
     self.all_Ecoli_y = np.zeros((N, tumbles + 1, iterationCount))
+
+
+  def analytical_Grad_NormalDist(self,X,Y):
+    """
+    Parameters
+    ----------
+    X : Previous Iteration X Column
+    Y : Previous Iteration Y Column
+        Analytical solution to the
+        partial derivative with respect to x and y of the normal distribution
+
+    Returns
+    -------
+    dZ_dX : Float type
+        partial derivative of Z with respect to X
+    dZ_dY : Float type
+        partial derivative of Z with respect to Y
+
+    """
+
+
+    ND_Var_X = self.ND_Var_X
+    ND_Mu_X = self.ND_Mu_X
+    ND_Var_Y = self.ND_Var_Y
+    ND_Mu_Y = self.ND_Mu_Y
+
+    x = X[-1]
+    y = Y[-1]
+
+    P1_X = np.sqrt(2*np.pi*ND_Var_X)
+    P2_X = (x - ND_Mu_X)**2 / 2*ND_Var_X
+
+    P1_Y = np.sqrt(2*np.pi*ND_Var_Y)
+    P2_Y = (y- ND_Mu_Y)**2 / 2*ND_Var_Y
+
+
+
+    Zx = np.exp(-1*P2_X)/P1_X
+    Zy = np.exp(-1*P2_Y)/P1_Y
+
+    dZ_dX = -1*(x - ND_Mu_X ) * Zx / ND_Var_X
+    dZ_dY = -1*(y - ND_Mu_Y ) * Zy / ND_Var_Y
+
+
+    return dZ_dX, dZ_dY
+
+
+  def FoodLoc_NormalDist(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
+    """
+    Food source profile:
+        General equation for a 3D Normal Distribution
+
+    ND_Var_X = x variance determined in __init__ function
+    ND_Mu_X = x mean determined in __init__ function
+    ND_Var_Y = y variance determined in __init__ function
+    ND_Mu_Y = y mean determined in __init__ function
+
+    Parameters
+    ----------
+    x : np.array, optional
+        Ecoli x-postion
+    y : np.array, optional
+        Ecoli y-postion
+
+    Returns
+    -------
+    Z : Float
+        Solution for for a 3D Normal Distribution
+
+    """
+    ND_Var_X = self.ND_Var_X
+    ND_Mu_X = self.ND_Mu_X
+    ND_Var_Y = self.ND_Var_Y
+    ND_Mu_Y = self.ND_Mu_Y
+
+    P1_X = np.sqrt(2*np.pi*ND_Var_X)
+    P2_X = (x - ND_Mu_X)**2 / 2*ND_Var_X
+
+    P1_Y = np.sqrt(2*np.pi*ND_Var_Y)
+    P2_Y = (y- ND_Mu_Y)**2 / 2*ND_Var_Y
+
+    Z = np.exp(-1*P2_X)/P1_X  + np.exp(-1*P2_Y)/P1_Y
+
+    return Z
 
 
   def FoodLoc_Polynom_2(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
@@ -307,6 +462,7 @@ class Ecoli_Walk():
 
     return Z
 
+
   def analytical_Grad_Polynom_4(self,X,Y):
     a1 = self.a1
     b1 = self.b1
@@ -328,19 +484,20 @@ class Ecoli_Walk():
 
     return dZ_dX, dZ_dY
 
+
   def analytical_Grad_Polynom_2(self,X,Y):
-        A = self.A
-        a = self.a
-        B = self.B
-        b = self.b
+    A = self.A
+    a = self.a
+    B = self.B
+    b = self.b
 
 
 
-        dZ_dX = 2*A*(X[-1] - a) #Partial derivative with respect to X
+    dZ_dX = 2*A*(X[-1] - a) #Partial derivative with respect to X
 
-        dZ_dY = 2*B*(Y[-1] - b) #Partial derivative with respect to Y
+    dZ_dY = 2*B*(Y[-1] - b) #Partial derivative with respect to Y
 
-        return dZ_dX, dZ_dY
+    return dZ_dX, dZ_dY
 
 
   def Grad_estimation(self,X,Y):
@@ -359,18 +516,32 @@ class Ecoli_Walk():
     dX = (X[-1] - X[0])
     dY = (Y[-1] - Y[0])
 
+    # #Prevent delta from becoming too small, but maintain direction:
+    # dZ += np.sign(dZ)+self.gradEst_MinDelta
+    # dX += np.sign(dX)+self.gradEst_MinDelta
+    # dY += np.sign(dY)+self.gradEst_MinDelta
     #Prevent delta from becoming too small, but maintain direction:
-    dZ += np.sign(dZ)*self.gradEst_MinDelta
-    dX += np.sign(dX)*self.gradEst_MinDelta
-    dY += np.sign(dY)*self.gradEst_MinDelta
+    if dZ > 0:
+        dZ += self.gradEst_MinDelta
+    else:
+        dZ -= self.gradEst_MinDelta
 
+    if dX > 0:
+        dX += self.gradEst_MinDelta
+    else:
+        dX -= self.gradEst_MinDelta
+
+    if dY > 0:
+        dY += self.gradEst_MinDelta
+    else:
+        dY -= self.gradEst_MinDelta
 
     dZ_dX = dZ / dX
 
     dZ_dY = dZ / dY
 
-
     return dZ_dX, dZ_dY
+
 
   def update_RandomStepLength(self, X_RunLength, Y_RunLength):
     ####Initial Run and Tumble lengths
@@ -545,14 +716,18 @@ class Ecoli_Walk():
       plot_Ecoli = self.plot_Ecoli
 
       #For every 100 iterations, create a plot
-      for n in range(1, iterationCount + 1):
+      for n in range(1, iterationCount):
         if not n % 100:
           plot_Ecoli(plotX[0:n], plotY[0:n], X_min = X_min, X_max = X_max, Y_min = Y_min, Y_max = Y_max, current_Iteration = n, current_N = i)
+
+      plot_Ecoli(plotX, plotY, X_min = X_min, X_max = X_max, Y_min = Y_min, Y_max = Y_max, current_Iteration = self.iterationCount, current_N = i)
 
       #store x,y values for each Ecoli
       self.all_Ecoli_x[i] = Ecoli_x
       self.all_Ecoli_y[i] = Ecoli_y
-    # self.plot_EcoliPath_histogram()
+
+    plot_EcoliPath_histogram = self.plot_EcoliPath_histogram
+    plot_EcoliPath_histogram()
 
   def plot_Ecoli(self, plotX, plotY, X_min, X_max, Y_min, Y_max, current_Iteration, current_N):
 
@@ -587,21 +762,27 @@ class Ecoli_Walk():
 
     plt.scatter(iter_start_X,iter_start_Y, color = 'g', marker = '*', s = 50, label = 'Iteration')
 
-    plt.scatter(plotX[0],plotY[0],color = 'k',marker = 's', s = 100, zorder=9, label = 'Start')
+    plt.scatter(plotX[0],plotY[0],color = 'c',marker = 's', s = 100, zorder=9, label = 'Start')
     plt.scatter(plotX[-1],plotY[-1],color = 'b',marker = 'X', s = 200, zorder=10, label = 'End')
 
-    plt.title(f"All E.coli Paths with Food Gradient Background \n N = {self.N}, I = {current_Iteration}, Memory = 4 \n Current N = {current_N + 1}")
+    if self.analytical_Grad:
+      gradType = "Analytical"
+    else:
+      gradType = "Numerical"
+
+    plt.legend()
+    plt.title(f"E.coli Paths with Food Gradient Background \n N = {self.N}, I = {current_Iteration}, Memory = {self.tumbles}, Current N = {current_N + 1} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType}")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.legend()
     plt.show()
 
 
   def plot_EcoliPath_histogram(self):
-    histogram_rows = 5
+
+    histogram_rows = 6
 
     #Condition to skip histogram plot if number of E.coli is too small
-    if self.N <= 3:
+    if self.N <= 5:
       return
 
     #Determine how many subplots based on iteration counts
@@ -614,16 +795,23 @@ class Ecoli_Walk():
     if self.iterationCount <= 100:
       histogram_rows = 4
 
+    if self.iterationCount <= 1000:
+      histogram_rows = 5
+
     #Set up subplots, minimum/maximum, and bins
     figure, axes = plt.subplots(nrows= histogram_rows, ncols = 1, figsize=(8, 12))
     empty_patch = mpatches.Patch(color = 'none')
     min_distance = 0
-    max_distance = np.sqrt((self.all_Ecoli_x[0, 0, 0] - self.a)**2 + (self.all_Ecoli_y[0, 0, 0] - self.b)**2) + self.stepSize_mu + 10 * self.stepSize_std
-    bins = np.linspace(min_distance, max_distance, self.N)
+    max_distance = np.sqrt((self.all_Ecoli_x[0, 0, 0] - self.foodLoc_X)**2 + (self.all_Ecoli_y[0, 0, 0] - self.foodLoc_Y)**2)
+
+    if self.N > 100:
+      bins = np.linspace(min_distance, max_distance, self.N)
+    else:
+      bins = 100
 
     #Initial subplot for first time step
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, 1] - self.a)**2 + (self.all_Ecoli_y[:, 0, 1] - self.b)**2)
-    axes[0].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, 1] - self.foodLoc_X)**2 + (self.all_Ecoli_y[:, 0, 1] - self.foodLoc_Y)**2)
+    axes[0].hist(distance, bins = bins, range=[min_distance, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
     labels.append("I = 1")
@@ -631,7 +819,7 @@ class Ecoli_Walk():
 
     #Subplot for 10 time steps
     if self.iterationCount > 10:
-      distance = np.sqrt((self.all_Ecoli_x[:, 0, 9] - self.a)**2 + (self.all_Ecoli_y[:, 0, 9] - self.b)**2)
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 9] - self.foodLoc_X)**2 + (self.all_Ecoli_y[:, 0, 9] - self.foodLoc_Y)**2)
       axes[1].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
       handles, labels = plt.gca().get_legend_handles_labels()
       handles.append(empty_patch)
@@ -640,7 +828,7 @@ class Ecoli_Walk():
 
     #Subplot for 50 time steps
     if self.iterationCount > 50:
-      distance = np.sqrt((self.all_Ecoli_x[:, 0, 49] - self.a)**2 + (self.all_Ecoli_y[:, 0, 49] - self.b)**2)
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 49] - self.foodLoc_X)**2 + (self.all_Ecoli_y[:, 0, 49] - self.foodLoc_Y)**2)
       axes[2].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
       handles, labels = plt.gca().get_legend_handles_labels()
       handles.append(empty_patch)
@@ -649,7 +837,7 @@ class Ecoli_Walk():
 
     #Subplot for 100 time steps
     if self.iterationCount > 100:
-      distance = np.sqrt((self.all_Ecoli_x[:, 0, 99] - self.a)**2 + (self.all_Ecoli_y[:, 0, 99] - self.b)**2)
+      distance = np.sqrt((self.all_Ecoli_x[:, 0, 99] - self.foodLoc_X)**2 + (self.all_Ecoli_y[:, 0, 99] - self.foodLoc_Y)**2)
       axes[3].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
       handles, labels = plt.gca().get_legend_handles_labels()
       handles.append(empty_patch)
@@ -657,7 +845,7 @@ class Ecoli_Walk():
       axes[3].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
     #Subplot for last time step of iterations
-    distance = np.sqrt((self.all_Ecoli_x[:, 0, -1] - self.a)**2 + (self.all_Ecoli_y[:, 0, -1] - self.b)**2)
+    distance = np.sqrt((self.all_Ecoli_x[:, 0, -1] - self.foodLoc_X)**2 + (self.all_Ecoli_y[:, 0, -1] - self.foodLoc_Y)**2)
     axes[-1].hist(distance, bins= bins, range=[min_distance, max_distance], color = "black")
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(empty_patch)
@@ -665,12 +853,13 @@ class Ecoli_Walk():
     axes[-1].legend(handles, labels, loc='upper left', handlelength = 0, handleheight = 0)
 
     #Add dynamic labels and title
+    if self.analytical_Grad:
+      gradType = "Analytical"
+    else:
+      gradType = "Numerical"
+
     figure.supxlabel("Distance from the source")
     figure.supylabel("Number of Ecoli")
-    figure.suptitle(f"Effective path lengths of E.coli \n N = {self.N}, I = {self.iterationCount}, Memory = {self.tumbles}")
+    figure.suptitle(f"Effective path lengths of E.coli \n N = {self.N}, I = {self.iterationCount}, Memory = {self.tumbles} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType}")
     plt.tight_layout()
     plt.show()
-
-
-test = Ecoli_Walk(iterationCount=1000, N = 10)
-test.EcoliWalk_Simulation()
