@@ -45,7 +45,12 @@ def randSteps(stepSize_mu: np.array = np.ones((2,1)),
 
 
 #define E.coli class
-class Ecoli_Walk_Simulation():
+class Ecoli_Walk():
+
+    # Each cycle:
+    #1) Tumble: 4 small unbiased steps --> monte carlo
+    #2) Sense: compare C(t) vs C(t-4Δt)
+    #3) Run: move along recent heading if improved, else opposite --> gradient step
   def __init__(self,
               #Function Params:
               foodFunctionType: str = 'Polynom_2',
@@ -231,39 +236,6 @@ class Ecoli_Walk_Simulation():
     self.all_Ecoli_y = np.zeros((N, tumbles + 1, iterationCount))
 
 
-  def FoodLoc_F1(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
-
-    """
-    Food source profile:
-        General equation for a 2D parabala
-
-    Inputs:
-        A,B = scalars for x,y directions
-            Values closer to 0 make the slope more gradual
-            Negative values are recquiered to find an absolute max
-
-        a,b = scalars to manipulate the location of the abs max (if A and B < 0)
-
-        C = scale to manipuate the height of each point in the G direction
-
-    Ouptput:
-        G: np.array((1,1))
-    """
-
-
-
-    A = self.A
-    a = self.a
-    B = self.B
-    b = self.b
-    C = self.C
-
-
-    G = A*(x-a)**2 + B*(y-b)**2 + C
-
-    return G
-
-
   def FoodLoc_Polynom_2(self, x: np.array = np.zeros((1,1)), y: np.array = np.zeros((1,1))):
 
     """
@@ -415,7 +387,7 @@ class Ecoli_Walk_Simulation():
     return tumbleStep_avg, tumbleStep_std
 
 
-  def runEcoliWalk_F1(self):
+  def EcoliWalk_Simulation(self):
     """
     Ecoli random walk simulation with food source function F1
 
@@ -563,6 +535,7 @@ class Ecoli_Walk_Simulation():
       plotX = np.reshape(Ecoli_x.transpose(),(iterationCount*tumblesPlusRun,))
       plotY = np.reshape(Ecoli_y.transpose(),(iterationCount*tumblesPlusRun,))
 
+
       #Use plot_Ecoli function to generate the plot
       #Get the min and max for X and Y to illustrate progression of Ecoli
       X_min = np.min(plotX)
@@ -572,19 +545,18 @@ class Ecoli_Walk_Simulation():
       plot_Ecoli = self.plot_Ecoli
 
       #For every 100 iterations, create a plot
-      for n in range(1, iterationCount):
+      for n in range(1, iterationCount + 1):
         if not n % 100:
-          plot_Ecoli(plotX[0:n], plotY[0:n], X_min = X_min, X_max = X_max, Y_min = Y_min, Y_max = Y_max)
+          plot_Ecoli(plotX[0:n], plotY[0:n], X_min = X_min, X_max = X_max, Y_min = Y_min, Y_max = Y_max, current_Iteration = n, current_N = i)
 
       #store x,y values for each Ecoli
       self.all_Ecoli_x[i] = Ecoli_x
       self.all_Ecoli_y[i] = Ecoli_y
-
     # self.plot_EcoliPath_histogram()
 
-  def plot_Ecoli(self, plotX, plotY, X_min, X_max, Y_min, Y_max):
+  def plot_Ecoli(self, plotX, plotY, X_min, X_max, Y_min, Y_max, current_Iteration, current_N):
 
-    FoodLoc_F1 = self.FoodLoc_F1
+    foodLocFunc = self.foodLocFunc
 
     X_spacer = (X_max-X_min)/20
 
@@ -603,15 +575,13 @@ class Ecoli_Walk_Simulation():
     y = np.linspace(Y_min - Y_spacer, Y_max + Y_spacer, 1000)
 
     X, Y = np.meshgrid(x,y)
-    Z = FoodLoc_F1(x = X, y = Y)
+    Z = foodLocFunc(x = X, y = Y)
     #__________________________________________________________________________#
 
 
     #Plot Result:
 
     plt.contourf(X,Y,Z, levels = self.plotLevels, cmap = 'gray') #Plotting for food source function in 2D:
-
-
 
     plt.plot(plotX, plotY, color = 'r',marker = 'o', markersize = 1) #Ecoli walk
 
@@ -620,6 +590,9 @@ class Ecoli_Walk_Simulation():
     plt.scatter(plotX[0],plotY[0],color = 'k',marker = 's', s = 100, zorder=9, label = 'Start')
     plt.scatter(plotX[-1],plotY[-1],color = 'b',marker = 'X', s = 200, zorder=10, label = 'End')
 
+    plt.title(f"All E.coli Paths with Food Gradient Background \n N = {self.N}, I = {current_Iteration}, Memory = 4 \n Current N = {current_N + 1}")
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.legend()
     plt.show()
 
@@ -699,5 +672,5 @@ class Ecoli_Walk_Simulation():
     plt.show()
 
 
-test = Ecoli_Walk_Simulation(iterationCount=1000, N = 10)
-test.runEcoliWalk_F1()
+test = Ecoli_Walk(iterationCount=1000, N = 10)
+test.EcoliWalk_Simulation()
