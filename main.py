@@ -516,10 +516,6 @@ class Ecoli_Walk():
     dX = (X[-1] - X[0])
     dY = (Y[-1] - Y[0])
 
-    # #Prevent delta from becoming too small, but maintain direction:
-    # dZ += np.sign(dZ)+self.gradEst_MinDelta
-    # dX += np.sign(dX)+self.gradEst_MinDelta
-    # dY += np.sign(dY)+self.gradEst_MinDelta
     #Prevent delta from becoming too small, but maintain direction:
     if dZ > 0:
         dZ += self.gradEst_MinDelta
@@ -771,7 +767,7 @@ class Ecoli_Walk():
       gradType = "Numerical"
 
     plt.legend()
-    plt.title(f"E.coli Paths with Food Gradient Background \n N = {self.N}, I = {current_Iteration}, Memory = {self.tumbles}, Current N = {current_N + 1} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType}")
+    plt.title(f"E.coli Paths with Food Gradient Background \n N = {self.N}, I = {current_Iteration}, Memory = {self.tumbles}, Current N = {current_N + 1} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType} \n Distribution Type = {self.foodFunctionType}")
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.show()
@@ -860,6 +856,6 @@ class Ecoli_Walk():
 
     figure.supxlabel("Distance from the source")
     figure.supylabel("Number of Ecoli")
-    figure.suptitle(f"Effective path lengths of E.coli \n N = {self.N}, I = {self.iterationCount}, Memory = {self.tumbles} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType}")
+    figure.suptitle(f"Effective path lengths of E.coli \n N = {self.N}, I = {self.iterationCount}, Memory = {self.tumbles} \n Learning Rate = {self.learning_R}, Gradient Type = {gradType}, Optimization Type = {self.optimizeType} \n Distribution Type = {self.foodFunctionType}")
     plt.tight_layout()
     plt.show()
